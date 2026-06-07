@@ -479,25 +479,28 @@ def render_upload_panel(uploaded_files, selected_item=None, selected_result=None
         st.write(f"Prediction: `{selected_result['prediction']}`")
         st.write(f"Defect score: `{selected_result['defect_score']:.4f}`")
 
+def threshold_rows_by_component(metadata, mode, manual_threshold):
+    rows = []
+    specialist_components = set(metadata.get("specialist_components", []))
+    for component in metadata["components"]:
+        route = component if component in specialist_components else "global"
+        threshold = get_threshold(component, route, metadata, mode, manual_threshold)
+        rows.append(
+            {
+                "component": COMPONENT_DISPLAY_NAMES.get(component, component),
+                "threshold": round(float(threshold), 4),
+            }
+        )
+    return rows
+
+
 def render_threshold_explanation(metadata, manual_threshold):
     st.sidebar.divider()
     st.sidebar.subheader("Threshold mode 說明")
 
-    final_rows = [
-        {
-            "component": COMPONENT_DISPLAY_NAMES.get(component, component),
-            "threshold": threshold,
-        }
-        for component, threshold in FINAL_COMPONENT_THRESHOLDS.items()
-    ]
-    validation_rows = [
-        {
-            "classifier": classifier,
-            "threshold": threshold,
-        }
-        for classifier, threshold in metadata.get("route_thresholds", {}).items()
-    ]
-    manual_rows = [{"threshold": manual_threshold}]
+    final_rows = threshold_rows_by_component(metadata, "Final submission thresholds", manual_threshold)
+    validation_rows = threshold_rows_by_component(metadata, "Validation thresholds", manual_threshold)
+    manual_rows = threshold_rows_by_component(metadata, "Manual threshold", manual_threshold)
 
     with st.sidebar.expander("Final submission thresholds", expanded=True):
         st.write("正式提交最佳版本使用的設定；針對部分設備類別覆寫 threshold，以提高 recall。")
