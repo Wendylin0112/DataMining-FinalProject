@@ -358,13 +358,13 @@ def render_image_navigation(items):
     clamp_selected_index(len(items))
     filenames = [item["filename"] for item in items]
 
-    prev_col, select_col, next_col = st.columns([0.12, 0.76, 0.12])
+    prev_col, select_col, next_col = st.columns([0.09, 0.82, 0.09])
     with prev_col:
-        if st.button("‹", use_container_width=True, disabled=st.session_state.selected_image_index <= 0, help="Previous image"):
+        if st.button("←", use_container_width=True, disabled=st.session_state.selected_image_index <= 0, help="Previous image"):
             st.session_state.selected_image_index -= 1
     with next_col:
         if st.button(
-            "›",
+            "→",
             use_container_width=True,
             disabled=st.session_state.selected_image_index >= len(items) - 1,
             help="Next image",
@@ -584,6 +584,11 @@ def main():
         div[data-testid="stImage"] img {
             max-width: 100%;
             height: auto;
+        }
+        div[data-testid="stButton"] button {
+            min-height: 2.55rem;
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
         }
         </style>
         """,
