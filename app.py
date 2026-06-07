@@ -213,6 +213,25 @@ def cache_key(uploaded_file, image_bytes, model_dir, threshold_mode, manual_thre
     )
 
 
+def upload_id(filename, image_bytes):
+    digest = hashlib.md5(image_bytes).hexdigest()[:12]
+    return f"{filename}|{len(image_bytes)}|{digest}"
+
+
+def get_active_uploaded_files(uploaded_files):
+    if "removed_upload_ids" not in st.session_state:
+        st.session_state.removed_upload_ids = set()
+
+    current_ids = {upload_id(uploaded_file.name, uploaded_file.getvalue()) for uploaded_file in uploaded_files}
+    st.session_state.removed_upload_ids = st.session_state.removed_upload_ids.intersection(current_ids)
+
+    return [
+        uploaded_file
+        for uploaded_file in uploaded_files
+        if upload_id(uploaded_file.name, uploaded_file.getvalue()) not in st.session_state.removed_upload_ids
+    ]
+
+
 def predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, manual_threshold):
     if "prediction_cache" not in st.session_state:
         st.session_state.prediction_cache = {}
@@ -221,6 +240,7 @@ def predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, ma
     progress = st.progress(0, text="Running predictions...")
     for index, uploaded_file in enumerate(uploaded_files, start=1):
         image_bytes = uploaded_file.getvalue()
+        current_upload_id = upload_id(uploaded_file.name, image_bytes)
         key = cache_key(uploaded_file, image_bytes, model_dir, threshold_mode, manual_threshold)
         if key not in st.session_state.prediction_cache:
             image = image_from_bytes(image_bytes)
@@ -233,6 +253,7 @@ def predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, ma
         cached = st.session_state.prediction_cache[key]
         items.append(
             {
+                "upload_id": current_upload_id,
                 "filename": uploaded_file.name,
                 "image_bytes": image_bytes,
                 "result": cached["result"],
@@ -305,33 +326,54 @@ def render_image_navigation(items):
     return selected_index
 
 
-def render_selectable_results_table(display_df):
-    st.caption("點選表格中的任一列，可以切換左側照片預覽與右側詳細資訊。若瀏覽器沒有反應，可使用上方下拉選單或左右箭頭。")
-    try:
-        event = st.dataframe(
-            display_df,
-            hide_index=True,
-            use_container_width=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            key="prediction_results_table",
-        )
-    except TypeError:
-        st.dataframe(display_df, hide_index=True, use_container_width=True)
-        return None
+def render_results_table(results_df, items):
+    st.caption("在 remove 欄位勾選圖片後，按下 Remove checked images 可從目前批次結果中移除。")
 
-    selected_rows = getattr(getattr(event, "selection", None), "rows", [])
-    if not selected_rows:
-        return None
+    display_df = results_df[
+        [
+            "filename",
+            "component_display",
+            "defect_score",
+            "threshold",
+            "prediction_label",
+            "prediction",
+            "defect_route",
+        ]
+    ].copy()
+    display_df.insert(0, "remove", False)
 
-    row_index = int(selected_rows[0])
-    if st.session_state.get("last_table_selected_index") != row_index:
-        st.session_state.last_table_selected_index = row_index
-        st.session_state.selected_image_index = row_index
-    return row_index
+    edited_df = st.data_editor(
+        display_df,
+        hide_index=True,
+        use_container_width=True,
+        disabled=[
+            "filename",
+            "component_display",
+            "defect_score",
+            "threshold",
+            "prediction_label",
+            "prediction",
+            "defect_route",
+        ],
+        column_config={
+            "remove": st.column_config.CheckboxColumn(
+                "remove",
+                help="勾選後按下方按鈕，可從目前批次中移除這張照片。",
+            )
+        },
+        key="prediction_remove_table",
+    )
+
+    checked_positions = edited_df.index[edited_df["remove"]].tolist()
+    remove_disabled = len(checked_positions) == 0
+    if st.button("Remove checked images", disabled=remove_disabled, use_container_width=True):
+        for position in checked_positions:
+            st.session_state.removed_upload_ids.add(items[position]["upload_id"])
+        st.session_state.selected_image_index = 0
+        st.rerun()
 
 
-def render_prediction_panel(results_df, selected_result):
+def render_prediction_panel(results_df, items, selected_result):
     st.subheader("Prediction results")
     st.caption("Defect score 大於等於 threshold 時，模型會輸出 defective / bad (1)。")
 
@@ -348,20 +390,7 @@ def render_prediction_panel(results_df, selected_result):
     st.write(f"Selected component: `{selected_result['component_display']}`")
     st.write(f"Defect route: `{selected_result['route']}`")
 
-    display_df = results_df[
-        [
-            "filename",
-            "component_display",
-            "defect_score",
-            "threshold",
-            "prediction_label",
-            "prediction",
-            "defect_route",
-        ]
-    ].copy()
-    selected_from_table = render_selectable_results_table(display_df)
-    if selected_from_table is not None:
-        st.rerun()
+    render_results_table(results_df, items)
 
     csv_bytes = results_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
     st.download_button(
@@ -394,12 +423,6 @@ def render_upload_panel(uploaded_files, selected_item=None, selected_result=None
         st.write(f"Component: `{selected_result['component_display']}`")
         st.write(f"Prediction: `{selected_result['prediction']}`")
         st.write(f"Defect score: `{selected_result['defect_score']:.4f}`")
-
-    if len(uploaded_files) > 1:
-        with st.expander(f"Uploaded image list ({len(uploaded_files)} files)"):
-            for index, uploaded_file in enumerate(uploaded_files, start=1):
-                marker = "→ " if index - 1 == st.session_state.selected_image_index else ""
-                st.write(f"{marker}{index}. {uploaded_file.name}")
 
 
 def render_threshold_explanation(metadata):
@@ -557,21 +580,38 @@ def main():
         )
         preview_slot = st.empty()
 
+    active_uploaded_files = get_active_uploaded_files(uploaded_files) if uploaded_files else []
     selected_item = None
     selected_result = None
-    with right_col:
-        if uploaded_files:
-            items, results_df = predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, manual_threshold)
+    items = []
+    results_df = pd.DataFrame()
+
+    if active_uploaded_files:
+        items, results_df = predict_uploaded_files(
+            active_uploaded_files,
+            bundle,
+            model_dir,
+            threshold_mode,
+            manual_threshold,
+        )
+        clamp_selected_index(len(items))
+
+    with preview_slot.container():
+        if active_uploaded_files:
             selected_index = render_image_navigation(items)
             selected_item = items[selected_index]
             selected_result = selected_item["result"]
-            render_prediction_panel(results_df, selected_result)
+        render_upload_panel(active_uploaded_files, selected_item, selected_result)
+
+    with right_col:
+        if active_uploaded_files:
+            render_prediction_panel(results_df, items, selected_result)
+        elif uploaded_files:
+            st.subheader("Prediction results")
+            st.info("All uploaded images were removed from the current batch. Upload new images or clear the uploader to start over.")
         else:
             st.subheader("Prediction results")
             st.info("Upload images on the left to see results here.")
-
-    with preview_slot.container():
-        render_upload_panel(uploaded_files, selected_item, selected_result)
 
     render_guide()
 
