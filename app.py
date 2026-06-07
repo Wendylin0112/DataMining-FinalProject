@@ -433,16 +433,23 @@ def render_prediction_panel(results_df, items, selected_result):
     st.subheader("Prediction results")
     st.caption("Defect score 大於等於 threshold 時，模型會輸出 defective / bad (1)。")
 
-    metric_cols = st.columns(4)
+    metric_cols = st.columns(3)
     total = len(results_df)
     defective_count = int((results_df["prediction_label"] == 1).sum())
     normal_count = total - defective_count
     metric_cols[0].metric("Images", total, help="本次上傳並完成預測的圖片張數。")
     metric_cols[1].metric("Defective", defective_count, help="模型判斷為 defective / bad (1) 的圖片數。")
     metric_cols[2].metric("Normal", normal_count, help="模型判斷為 normal / good (0) 的圖片數。")
-    metric_cols[3].metric("Selected score", f"{selected_result['defect_score']:.4f}", help="目前選取圖片的 defect score。")
 
-    render_prediction_badge(selected_result["pred_label"])
+    status_col, score_col = st.columns([0.72, 0.28])
+    with status_col:
+        render_prediction_badge(selected_result["pred_label"])
+    with score_col:
+        st.metric(
+            "Selected score / threshold",
+            f"{selected_result['defect_score']:.4f} / {selected_result['threshold']:.4f}",
+            help="目前選取圖片的 defect score 與此模式使用的 threshold。",
+        )
     st.write(f"Selected component: `{selected_result['component_display']}`")
 
     render_results_table(results_df, items)
