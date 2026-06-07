@@ -1,0 +1,82 @@
+{
+  "overall": {
+    "count": 825,
+    "accuracy": 0.9454545454545454,
+    "precision": 0.9205607476635514,
+    "recall": 0.8755555555555555,
+    "f1": 0.89749430523918,
+    "confusion_matrix": {
+      "tn": 583,
+      "fp": 17,
+      "fn": 28,
+      "tp": 197
+    }
+  },
+  "per_asset": {
+    "glass-insulator": {
+      "count": 165,
+      "accuracy": 0.8848484848484849,
+      "precision": 0.8095238095238095,
+      "recall": 0.7555555555555555,
+      "f1": 0.7816091954022989,
+      "confusion_matrix": {
+        "tn": 112,
+        "fp": 8,
+        "fn": 11,
+        "tp": 34
+      }
+    },
+    "lightning-rod-suspension": {
+      "count": 165,
+      "accuracy": 0.9575757575757575,
+      "precision": 1.0,
+      "recall": 0.8444444444444444,
+      "f1": 0.9156626506024096,
+      "confusion_matrix": {
+        "tn": 120,
+        "fp": 0,
+        "fn": 7,
+        "tp": 38
+      }
+    },
+    "polymer-insulator-upper-shackle": {
+      "count": 165,
+      "accuracy": 0.9575757575757575,
+      "precision": 0.975,
+      "recall": 0.8666666666666667,
+      "f1": 0.9176470588235294,
+      "confusion_matrix": {
+        "tn": 119,
+        "fp": 1,
+        "fn": 6,
+        "tp": 39
+      }
+    },
+    "vari-grip": {
+      "count": 165,
+      "accuracy": 0.9696969696969697,
+      "precision": 0.9347826086956522,
+      "recall": 0.9555555555555556,
+      "f1": 0.945054945054945,
+      "confusion_matrix": {
+        "tn": 117,
+        "fp": 3,
+        "fn": 2,
+        "tp": 43
+      }
+    },
+    "yoke-suspension": {
+      "count": 165,
+      "accuracy": 0.9575757575757575,
+      "precision": 0.8958333333333334,
+      "recall": 0.9555555555555556,
+      "f1": 0.924731182795699,
+      "confusion_matrix": {
+        "tn": 115,
+        "fp": 5,
+        "fn": 2,
+        "tp": 43
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+# Python cache / runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+!.vscode/
+!.vscode/*.md
+
+# Dataset folders are large and should not be committed.
+train_dataset/
+test_dataset/
+
+# Model checkpoints / serialized models are generated artifacts.
+*.pt
+*.pth
+*.ckpt
+*.joblib
+hybrid_deep_models*/
+
+# Historical experiment CSVs are kept locally only.
+csv_history/
+
+# Keep only final root CSV artifacts.
+*.csv
+!test_submission_template.csv
+!test_submission_hybrid_deep_p097_comp_balanced.csv
+!test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv
+
+# Keep final scoring records.
+!Final Testing Results/
+!Final Testing Results/**
+
+# Large presentation / office files
+*.pptx
+*.ppt
+*.docx
+*.xlsx
+
+# Misc local notes from earlier experiments
+message.txt
