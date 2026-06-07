@@ -1,4 +1,6 @@
+import hashlib
 import json
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -114,6 +116,17 @@ def load_hybrid_model(model_dir):
     }
 
 
+def get_model_dir_options():
+    model_dirs = [
+        path.name
+        for path in Path(".").glob("hybrid_deep_models*")
+        if path.is_dir() and (path / "metadata.json").exists()
+    ]
+    if DEFAULT_MODEL_DIR not in model_dirs:
+        model_dirs.insert(0, DEFAULT_MODEL_DIR)
+    return sorted(model_dirs, key=lambda name: (name != DEFAULT_MODEL_DIR, name))
+
+
 def get_threshold(component, route, metadata, mode, manual_threshold):
     if mode == "Final submission thresholds":
         if component in FINAL_COMPONENT_THRESHOLDS:
@@ -184,9 +197,51 @@ def result_to_row(filename, result):
     return row
 
 
-def open_uploaded_image(uploaded_file):
-    uploaded_file.seek(0)
-    return Image.open(uploaded_file).convert("RGB")
+def image_from_bytes(image_bytes):
+    return Image.open(BytesIO(image_bytes)).convert("RGB")
+
+
+def cache_key(uploaded_file, image_bytes, model_dir, threshold_mode, manual_threshold):
+    digest = hashlib.md5(image_bytes).hexdigest()
+    return (
+        uploaded_file.name,
+        len(image_bytes),
+        digest,
+        model_dir,
+        threshold_mode,
+        round(float(manual_threshold), 4),
+    )
+
+
+def predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, manual_threshold):
+    if "prediction_cache" not in st.session_state:
+        st.session_state.prediction_cache = {}
+
+    items = []
+    progress = st.progress(0, text="Running predictions...")
+    for index, uploaded_file in enumerate(uploaded_files, start=1):
+        image_bytes = uploaded_file.getvalue()
+        key = cache_key(uploaded_file, image_bytes, model_dir, threshold_mode, manual_threshold)
+        if key not in st.session_state.prediction_cache:
+            image = image_from_bytes(image_bytes)
+            result = predict(image, bundle, threshold_mode, manual_threshold)
+            st.session_state.prediction_cache[key] = {
+                "result": result,
+                "row": result_to_row(uploaded_file.name, result),
+            }
+
+        cached = st.session_state.prediction_cache[key]
+        items.append(
+            {
+                "filename": uploaded_file.name,
+                "image_bytes": image_bytes,
+                "result": cached["result"],
+                "row": cached["row"],
+            }
+        )
+        progress.progress(index / len(uploaded_files), text=f"Processed {index}/{len(uploaded_files)}")
+    progress.empty()
+    return items, pd.DataFrame([item["row"] for item in items])
 
 
 def render_model_error(exc):
@@ -212,9 +267,73 @@ def render_prediction_badge(pred_label):
         st.success("NORMAL / good (0)")
 
 
-def render_prediction_panel(results_df, first_result):
+def clamp_selected_index(item_count):
+    if "selected_image_index" not in st.session_state:
+        st.session_state.selected_image_index = 0
+    if item_count <= 0:
+        st.session_state.selected_image_index = 0
+    else:
+        st.session_state.selected_image_index = min(st.session_state.selected_image_index, item_count - 1)
+
+
+def render_image_navigation(items):
+    clamp_selected_index(len(items))
+    filenames = [item["filename"] for item in items]
+
+    prev_col, select_col, next_col = st.columns([0.22, 0.56, 0.22])
+    with prev_col:
+        if st.button("← Previous", use_container_width=True, disabled=st.session_state.selected_image_index <= 0):
+            st.session_state.selected_image_index -= 1
+    with next_col:
+        if st.button(
+            "Next →",
+            use_container_width=True,
+            disabled=st.session_state.selected_image_index >= len(items) - 1,
+        ):
+            st.session_state.selected_image_index += 1
+
+    clamp_selected_index(len(items))
+    with select_col:
+        selected_index = st.selectbox(
+            "Preview image",
+            options=list(range(len(items))),
+            format_func=lambda idx: f"{idx + 1}. {filenames[idx]}",
+            index=st.session_state.selected_image_index,
+            help="也可以用左右箭頭按鈕切換目前預覽的照片。",
+        )
+    st.session_state.selected_image_index = selected_index
+    return selected_index
+
+
+def render_selectable_results_table(display_df):
+    st.caption("點選表格中的任一列，可以切換左側照片預覽與右側詳細資訊。若瀏覽器沒有反應，可使用上方下拉選單或左右箭頭。")
+    try:
+        event = st.dataframe(
+            display_df,
+            hide_index=True,
+            use_container_width=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key="prediction_results_table",
+        )
+    except TypeError:
+        st.dataframe(display_df, hide_index=True, use_container_width=True)
+        return None
+
+    selected_rows = getattr(getattr(event, "selection", None), "rows", [])
+    if not selected_rows:
+        return None
+
+    row_index = int(selected_rows[0])
+    if st.session_state.get("last_table_selected_index") != row_index:
+        st.session_state.last_table_selected_index = row_index
+        st.session_state.selected_image_index = row_index
+    return row_index
+
+
+def render_prediction_panel(results_df, selected_result):
     st.subheader("Prediction results")
-    st.caption("ⓘ Defect score 大於等於 threshold 時，模型會輸出 defective / bad (1)。")
+    st.caption("Defect score 大於等於 threshold 時，模型會輸出 defective / bad (1)。")
 
     metric_cols = st.columns(4)
     total = len(results_df)
@@ -223,11 +342,11 @@ def render_prediction_panel(results_df, first_result):
     metric_cols[0].metric("Images", total, help="本次上傳並完成預測的圖片張數。")
     metric_cols[1].metric("Defective", defective_count, help="模型判斷為 defective / bad (1) 的圖片數。")
     metric_cols[2].metric("Normal", normal_count, help="模型判斷為 normal / good (0) 的圖片數。")
-    metric_cols[3].metric("First score", f"{first_result['defect_score']:.4f}", help="第一張圖片的 defect score。")
+    metric_cols[3].metric("Selected score", f"{selected_result['defect_score']:.4f}", help="目前選取圖片的 defect score。")
 
-    render_prediction_badge(first_result["pred_label"])
-    st.write(f"First image component: `{first_result['component_display']}`")
-    st.write(f"Defect route: `{first_result['route']}`")
+    render_prediction_badge(selected_result["pred_label"])
+    st.write(f"Selected component: `{selected_result['component_display']}`")
+    st.write(f"Defect route: `{selected_result['route']}`")
 
     display_df = results_df[
         [
@@ -240,7 +359,9 @@ def render_prediction_panel(results_df, first_result):
             "defect_route",
         ]
     ].copy()
-    st.dataframe(display_df, hide_index=True, use_container_width=True)
+    selected_from_table = render_selectable_results_table(display_df)
+    if selected_from_table is not None:
+        st.rerun()
 
     csv_bytes = results_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
     st.download_button(
@@ -251,27 +372,73 @@ def render_prediction_panel(results_df, first_result):
         help="下載本次上傳圖片的預測結果，包含檔名、設備類別、defect score、threshold 與預測 label。",
     )
 
-    with st.expander("ⓘ Component probabilities for the first image"):
-        probs = first_result["component_probabilities"].copy()
+    with st.expander("Component probabilities for the selected image"):
+        probs = selected_result["component_probabilities"].copy()
         probs["probability"] = probs["probability"].map(lambda value: f"{value:.4f}")
         st.dataframe(probs, hide_index=True, use_container_width=True)
 
 
-def render_upload_panel(uploaded_files):
-    st.subheader("Upload images")
-    st.caption("ⓘ 可以一次上傳多張 JPG / PNG。右側會顯示批次預測結果，並提供 CSV 下載。")
-
+def render_upload_panel(uploaded_files, selected_item=None, selected_result=None):
     if not uploaded_files:
         st.info("Upload one or more inspection images to run prediction.")
         return
 
-    first_image = open_uploaded_image(uploaded_files[0])
-    st.image(first_image, caption=f"Preview: {uploaded_files[0].name}", use_container_width=True)
+    if selected_item is None:
+        st.info("Preparing preview...")
+        return
+
+    selected_image = image_from_bytes(selected_item["image_bytes"])
+    st.image(selected_image, caption=f"Preview: {selected_item['filename']}", use_container_width=True)
+
+    if selected_result is not None:
+        st.write(f"Component: `{selected_result['component_display']}`")
+        st.write(f"Prediction: `{selected_result['prediction']}`")
+        st.write(f"Defect score: `{selected_result['defect_score']:.4f}`")
 
     if len(uploaded_files) > 1:
-        with st.expander(f"ⓘ Uploaded image list ({len(uploaded_files)} files)"):
-            for uploaded_file in uploaded_files:
-                st.write(uploaded_file.name)
+        with st.expander(f"Uploaded image list ({len(uploaded_files)} files)"):
+            for index, uploaded_file in enumerate(uploaded_files, start=1):
+                marker = "→ " if index - 1 == st.session_state.selected_image_index else ""
+                st.write(f"{marker}{index}. {uploaded_file.name}")
+
+
+def render_threshold_explanation(metadata):
+    st.sidebar.divider()
+    st.sidebar.subheader("Threshold mode 說明")
+    st.sidebar.markdown(
+        """
+        **Final submission thresholds**
+
+        使用正式提交最佳版本的 threshold。大多數 route 使用 validation tuning 的 threshold，並針對部分設備類別做 component-level 覆寫，以在 precision 維持 0.90 以上時提高 recall。
+
+        **Validation route thresholds**
+
+        使用訓練時在 validation set 上針對每個 defect route 搜尋出的 threshold。
+
+        **Manual threshold**
+
+        使用你手動設定的單一 threshold。數值越低越容易判斷為 defective，通常 recall 會上升，但 precision 可能下降。
+        """
+    )
+
+    final_rows = []
+    for component, threshold in FINAL_COMPONENT_THRESHOLDS.items():
+        final_rows.append(
+            {
+                "component": COMPONENT_DISPLAY_NAMES.get(component, component),
+                "threshold": threshold,
+                "source": "final component override",
+            }
+        )
+    st.sidebar.dataframe(pd.DataFrame(final_rows), hide_index=True, use_container_width=True)
+
+    route_rows = [
+        {"route": route, "threshold": threshold}
+        for route, threshold in metadata.get("route_thresholds", {}).items()
+    ]
+    if route_rows:
+        with st.sidebar.expander("Validation route threshold values"):
+            st.dataframe(pd.DataFrame(route_rows), hide_index=True, use_container_width=True)
 
 
 def render_guide():
@@ -290,7 +457,7 @@ def render_guide():
             5. 預測完成後可以下載 CSV，方便整理批次圖片的結果。
             """
         )
-        st.info("ⓘ defective 通常代表照片中可能有缺失零件、鏽蝕、破損、鳥巢或其他異常附著物。")
+        st.info("defective 通常代表照片中可能有缺失零件、鏽蝕、破損、鳥巢或其他異常附著物。")
 
     with examples_tab:
         for component, display_name in COMPONENT_DISPLAY_NAMES.items():
@@ -344,26 +511,30 @@ def main():
 
     with st.sidebar:
         st.header("Settings")
-        model_dir = st.text_input(
+        model_options = get_model_dir_options()
+        model_dir = st.selectbox(
             "Model directory",
-            DEFAULT_MODEL_DIR,
-            help="模型權重資料夾。線上部署與本機預設都使用 hybrid_deep_models_p097。",
+            model_options,
+            index=model_options.index(DEFAULT_MODEL_DIR) if DEFAULT_MODEL_DIR in model_options else 0,
+            help="選擇要使用的模型權重資料夾。線上部署預設使用 final model：hybrid_deep_models_p097。",
         )
         threshold_mode = st.selectbox(
             "Threshold mode",
             ["Final submission thresholds", "Validation route thresholds", "Manual threshold"],
-            help="Final submission thresholds 是正式提交最佳版本使用的設定。",
+            help="選擇 defect score 要使用哪一組 threshold 轉換成 normal / defective。",
         )
-        manual_threshold = st.slider(
-            "Manual threshold",
-            0.0,
-            1.0,
-            0.50,
-            0.01,
-            help="只有在 Threshold mode 選 Manual threshold 時才會使用。",
-        )
+        manual_threshold = 0.50
+        if threshold_mode == "Manual threshold":
+            manual_threshold = st.slider(
+                "Manual threshold",
+                0.0,
+                1.0,
+                0.50,
+                0.01,
+                help="數值越低越容易判斷為 defective；數值越高越保守。",
+            )
         st.divider()
-        st.caption("ⓘ 線上版使用 CPU 推論，第一次開啟或大量上傳時可能需要稍等。")
+        st.caption("線上版使用 CPU 推論，第一次開啟或大量上傳時可能需要稍等。")
 
     try:
         bundle = load_hybrid_model(model_dir)
@@ -371,38 +542,36 @@ def main():
         render_model_error(exc)
         st.stop()
 
-    uploaded_files = st.file_uploader(
-        "Upload inspection images",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=True,
-        help="可以一次選取多張圖片。建議使用清楚包含目標設備的巡檢影像。",
-        label_visibility="collapsed",
-    )
+    render_threshold_explanation(bundle["metadata"])
 
     left_col, right_col = st.columns([0.92, 1.08], gap="large")
-
     with left_col:
-        render_upload_panel(uploaded_files)
+        st.subheader("Upload images")
+        st.caption("可以一次上傳多張 JPG / PNG。右側會顯示批次預測結果，並提供 CSV 下載。")
+        uploaded_files = st.file_uploader(
+            "Upload inspection images",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            help="可以一次選取多張圖片。建議使用清楚包含目標設備的巡檢影像。",
+            label_visibility="collapsed",
+        )
+        preview_slot = st.empty()
 
+    selected_item = None
+    selected_result = None
     with right_col:
         if uploaded_files:
-            rows = []
-            first_result = None
-            progress = st.progress(0, text="Running predictions...")
-            for index, uploaded_file in enumerate(uploaded_files, start=1):
-                image = open_uploaded_image(uploaded_file)
-                result = predict(image, bundle, threshold_mode, manual_threshold)
-                if first_result is None:
-                    first_result = result
-                rows.append(result_to_row(uploaded_file.name, result))
-                progress.progress(index / len(uploaded_files), text=f"Processed {index}/{len(uploaded_files)}")
-            progress.empty()
-
-            results_df = pd.DataFrame(rows)
-            render_prediction_panel(results_df, first_result)
+            items, results_df = predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, manual_threshold)
+            selected_index = render_image_navigation(items)
+            selected_item = items[selected_index]
+            selected_result = selected_item["result"]
+            render_prediction_panel(results_df, selected_result)
         else:
             st.subheader("Prediction results")
             st.info("Upload images on the left to see results here.")
+
+    with preview_slot.container():
+        render_upload_panel(uploaded_files, selected_item, selected_result)
 
     render_guide()
 
