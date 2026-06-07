@@ -1,13 +1,17 @@
 # Power-Line Asset Defect Classification
 
-這個專案用於高解析度無人機電力線路巡檢影像的資產類別分類與缺失判斷。模型會先判斷照片中的設備類別，再判斷是否為 `normal` 或 `defective`。
+這是一個電力線路資產巡檢影像分類專案。模型會先辨識照片中的設備類別，再判斷該設備是否為正常或有缺失。
+
+線上 Demo：
+
+https://datamining-finalproject-jwxzxr4njtsox4z9quebt7.streamlit.app/
 
 ```text
 normal / good   -> 0
 defective / bad -> 1
 ```
 
-支援的 5 個設備類別：
+支援的設備類別：
 
 ```text
 vari-grip
@@ -17,137 +21,57 @@ glass-insulator
 yoke-suspension
 ```
 
-## 主入口
+## 快速使用
 
-這份專案最重要的入口如下：
+如果只是想使用模型，不需要下載專案，也不需要安裝 Python。
+
+1. 開啟線上 Demo：
+
+```text
+https://datamining-finalproject-jwxzxr4njtsox4z9quebt7.streamlit.app/
+```
+
+2. 上傳一張巡檢圖片，支援 `jpg`、`jpeg`、`png`。
+
+3. 網頁會輸出：
+
+```text
+設備類別
+defect score
+threshold
+normal / defective 預測結果
+component probabilities
+```
+
+預測結果中：
+
+```text
+NORMAL / good (0)      代表模型判斷為正常
+DEFECTIVE / bad (1)    代表模型判斷為有缺失
+```
+
+## 本機執行
+
+如果想下載到本地端執行，可以照以下步驟。
+
+### 1. 下載專案
+
+```powershell
+git clone <your-repository-url>
+cd DataMining
+```
+
+請確認專案根目錄有以下檔案與資料夾：
 
 ```text
 app.py
-  Streamlit 本機網頁 App。給使用者上傳圖片，直接輸出設備類別、defect 分數與 normal/defective 結果。
-
-train_hybrid_deep_classifier.py
-  最終 hybrid deep model 的訓練與 test set 推論主程式。
-
-adjust_submission_thresholds.py
-  根據 detailed prediction CSV 微調各設備類別的 defect threshold，輸出最終 submission CSV。
-
-Final Testing Results/
-  保存正式提交結果、評分 JSON、最終 submission 備份與成績摘要。
+requirements.txt
+hybrid_deep_models_p097/
 ```
 
-目前最終採用的 submission：
+其中 `hybrid_deep_models_p097/` 是 App 會使用的最終模型權重資料夾。
 
-```text
-test_submission_hybrid_deep_p097_comp_balanced.csv
-```
-
-對應的 detailed prediction：
-
-```text
-test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv
-```
-
-## 專案結構
-
-完整可使用的資料夾建議如下。
-
-```text
-DataMining/
-  README.md
-  .gitignore
-
-  app.py
-  train_hybrid_deep_classifier.py
-  adjust_submission_thresholds.py
-
-  test_submission_template.csv
-  test_submission_hybrid_deep_p097_comp_balanced.csv
-  test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv
-
-  Final Testing Results/
-    README.md
-    results_summary.csv
-    final_submission.csv
-    第一次.json
-    第二次.json
-    第三次.json
-    第一組_test_version1 (hybrid_deep_p097).csv
-    第一組_test_version2 (hybrid_deep_p097_comp_balanced).csv
-
-  hybrid_deep_models_p097/
-    metadata.json
-    component_model.pt
-    defect_global.pt
-    defect_vari-grip.pt
-    defect_glass-insulator.pt
-    defect_yoke-suspension.pt
-
-  train_dataset/
-    vari-grip/
-      good/
-      bad/
-    lightning-rod-suspension/
-      good/
-      bad/
-    polymer-insulator-upper-shackle/
-      good/
-      bad/
-    glass-insulator/
-      good/
-      bad/
-    yoke-suspension/
-      good/
-      bad/
-
-  test_dataset/
-    images/
-```
-
-`hybrid_deep_models_p097/` 是最終 App 會使用的模型權重資料夾，單一 `.pt` 檔約 15 MB，因此本專案會將這個 final model 一起放進 GitHub，讓其他人 clone 後可以直接執行 App。`train_dataset/`、`test_dataset/` 和其他實驗模型資料夾仍然不放進 GitHub，避免 repo 過大。
-
-## 安裝環境
-
-建議使用 conda 建立獨立環境。以下環境名稱沿用本專案開發時使用的 `aicup_cuda`。
-
-```powershell
-conda create -n aicup_cuda python=3.11 -y
-conda activate aicup_cuda
-```
-
-安裝 PyTorch 時請依照自己的 CUDA 版本選擇官方指令。本專案開發與訓練時使用 GPU：
-
-```text
-NVIDIA GeForce RTX 3050 4GB Laptop GPU
-```
-
-本機曾使用的主要套件版本：
-
-```text
-torch 2.11.0+cu128
-torchvision 0.26.0+cu128
-```
-
-若環境中已經有可用的 PyTorch / torchvision，只需要補上 App 與資料處理套件：
-
-```powershell
-pip install streamlit pandas pillow scikit-learn joblib
-```
-
-若需要重新安裝 PyTorch，請到 PyTorch 官方網站選擇符合 CUDA 版本的安裝指令：
-
-```text
-https://pytorch.org/get-started/locally/
-```
-
-## 執行本機網頁 App
-
-App 入口是：
-
-```text
-app.py
-```
-
-執行前請確認根目錄下有最終模型資料夾：
+必要內容如下：
 
 ```text
 hybrid_deep_models_p097/
@@ -159,45 +83,84 @@ hybrid_deep_models_p097/
   defect_yoke-suspension.pt
 ```
 
-啟動 App：
+### 2. 建立 Python 環境
+
+建議使用 conda：
+
+```powershell
+conda create -n aicup_cuda python=3.11 -y
+conda activate aicup_cuda
+```
+
+安裝套件：
+
+```powershell
+pip install -r requirements.txt
+```
+
+`requirements.txt` 主要包含：
+
+```text
+streamlit
+torch
+torchvision
+pandas
+pillow
+scikit-learn
+joblib
+```
+
+### 3. 啟動 App
+
+```powershell
+streamlit run app.py
+```
+
+或使用 conda run：
 
 ```powershell
 conda run --no-capture-output -n aicup_cuda python -m streamlit run app.py
 ```
 
-啟動後瀏覽器會開啟 Streamlit 頁面。使用者可以上傳 JPG / PNG 圖片，App 會輸出：
+啟動後會在瀏覽器開啟本機網址，通常是：
 
 ```text
-設備類別
-defect score
-threshold
-normal / defective 預測
-component probabilities
+http://localhost:8501
 ```
 
-App 預設使用與最終 submission 相同的 component-level thresholds：
+## 專案主入口
 
 ```text
-lightning-rod-suspension           -> 0.40
-polymer-insulator-upper-shackle    -> 0.50
-yoke-suspension                    -> 0.55
-其他 route                         -> 使用 metadata.json 中保存的 validation route threshold
+app.py
+  Streamlit 本機與雲端 App 入口。
+  使用 final hybrid deep model，讓使用者上傳圖片並取得預測結果。
+
+train_hybrid_deep_classifier.py
+  訓練 hybrid deep model 的主程式。
+  會訓練設備類別分類器、global defect classifier，以及部分設備類別的 specialist defect classifiers。
+
+adjust_submission_thresholds.py
+  根據 detailed prediction CSV 微調各設備類別的 defect threshold。
+  最終 submission 使用這個腳本進行 component-level threshold post-processing。
+
+Final Testing Results/
+  保存正式提交結果、評分 JSON、最終 submission 備份與成績摘要。
 ```
 
 ## 模型方法
 
-最終模型採用 hybrid deep learning 流程，不是單一二分類模型。
+本專案最終採用 hybrid deep learning 架構，而不是單一二分類模型。
 
-第一階段是設備類別分類：
+第一階段：設備類別分類。
 
 ```text
 input image -> EfficientNet-B0 -> 5-class component classifier
 ```
 
-第二階段是 defect 判斷：
+第二階段：根據預測出的設備類別，選擇對應的 defect route。
 
 ```text
-predicted component -> 選擇對應 defect route -> normal / defective
+predicted component -> select defect route -> normal / defective
 ```
 
 Defect route 設計如下：
@@ -219,7 +182,7 @@ lightning-rod-suspension
   bad 資料量太少，使用 global defect classifier
 ```
 
-這樣設計的原因是每個設備類別的缺失型態不同。資料量足夠的類別適合訓練自己的 specialist defect model；資料量不足的類別如果單獨訓練容易 overfit，因此使用 global defect classifier 會比較穩定。
+這樣設計的原因是不同設備類別的缺失型態不同。資料量足夠的類別適合訓練各自的 specialist defect model；資料量不足的類別如果單獨訓練容易 overfit，因此使用 global defect classifier 會比較穩定。
 
 ## 訓練設定
 
@@ -244,7 +207,7 @@ Sampling:
 
 Threshold:
   validation-based route threshold tuning
-  final submission 再做 component-level threshold post-processing
+  final submission 使用 component-level threshold post-processing
 ```
 
 資料增強包含：
@@ -268,30 +231,73 @@ glass-insulator defect specialist 6 epochs
 yoke-suspension defect specialist 6 epochs
 ```
 
-總計約 30 model-epochs。在 RTX 3050 4GB Laptop GPU 上，完整訓練大約需要 40 分鐘左右，實際時間會受 batch size、num_workers、GPU、CPU、硬碟速度與是否已下載 pretrained weights 影響。
+總計約 30 model-epochs。在 NVIDIA GeForce RTX 3050 4GB Laptop GPU 上，完整訓練大約需要 40 分鐘左右。實際時間會受 GPU、CPU、batch size、num_workers、硬碟速度與是否已下載 pretrained weights 影響。
 
-## 重新訓練
+## 專案結構
 
-訓練前請確認資料集結構如下：
+建議的完整結構如下：
+
+```text
+DataMining/
+  README.md
+  requirements.txt
+  .gitignore
+
+  app.py
+  train_hybrid_deep_classifier.py
+  adjust_submission_thresholds.py
+
+  test_submission_template.csv
+  test_submission_hybrid_deep_p097_comp_balanced.csv
+  test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv
+
+  hybrid_deep_models_p097/
+    metadata.json
+    metadata.joblib
+    component_model.pt
+    defect_global.pt
+    defect_vari-grip.pt
+    defect_glass-insulator.pt
+    defect_yoke-suspension.pt
+
+  Final Testing Results/
+    README.md
+    results_summary.csv
+    final_submission.csv
+    第一次.json
+    第二次.json
+    第三次.json
+    第一組_test_version1 (hybrid_deep_p097).csv
+    第一組_test_version2 (hybrid_deep_p097_comp_balanced).csv
+```
+
+如果需要重新訓練，還需要另外準備資料集：
 
 ```text
 train_dataset/
-  vari-grip/good/
-  vari-grip/bad/
-  lightning-rod-suspension/good/
-  lightning-rod-suspension/bad/
-  polymer-insulator-upper-shackle/good/
-  polymer-insulator-upper-shackle/bad/
-  glass-insulator/good/
-  glass-insulator/bad/
-  yoke-suspension/good/
-  yoke-suspension/bad/
+  vari-grip/
+    good/
+    bad/
+  lightning-rod-suspension/
+    good/
+    bad/
+  polymer-insulator-upper-shackle/
+    good/
+    bad/
+  glass-insulator/
+    good/
+    bad/
+  yoke-suspension/
+    good/
+    bad/
 
 test_dataset/
   images/
-
-test_submission_template.csv
 ```
+
+`train_dataset/` 和 `test_dataset/` 不會放進 GitHub，避免 repository 過大。`hybrid_deep_models_p097/` 是 final App 需要的模型權重，因此本專案會保留在 GitHub 中，讓使用者 clone 後可以直接執行 App。
+
+## 重新訓練
 
 重現最終 p097 base model 的訓練指令：
 
@@ -301,17 +307,10 @@ conda run --no-capture-output -n aicup_cuda python -u train_hybrid_deep_classifi
 
 `python -u` 與 `--log-every 25` 會讓訓練過程即時輸出目前訓練到哪一個模型、哪一個 epoch，以及 batch 進度。
 
-訓練完成後，會產生：
+訓練完成後會產生：
 
 ```text
 hybrid_deep_models_p097/
-  metadata.json
-  component_model.pt
-  defect_global.pt
-  defect_vari-grip.pt
-  defect_glass-insulator.pt
-  defect_yoke-suspension.pt
-
 test_submission_hybrid_deep_p097.csv
 test_predictions_hybrid_deep_p097_detailed.csv
 ```
@@ -324,7 +323,7 @@ test_predictions_hybrid_deep_p097_detailed.csv
 python adjust_submission_thresholds.py --detailed test_predictions_hybrid_deep_p097_detailed.csv --output test_submission_hybrid_deep_p097_comp_balanced.csv --detailed-output test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv --component-override lightning-rod-suspension=0.40 --component-override polymer-insulator-upper-shackle=0.50 --component-override yoke-suspension=0.55
 ```
 
-這個版本是本專案最終提交版本：
+最終採用的 submission：
 
 ```text
 test_submission_hybrid_deep_p097_comp_balanced.csv
@@ -380,9 +379,27 @@ tp: 197
 
 第二次的 `p097_comp_balanced` 在 precision 維持 0.90 以上的情況下有最高的 recall 與 f1，因此選為最終模型與最終 submission。
 
-## GitHub 上傳注意事項
+## Streamlit Cloud 部署
 
-`.gitignore` 已排除大型或非必要檔案，但特別保留最終 App 需要的 `hybrid_deep_models_p097/`：
+目前 App 已部署在 Streamlit Community Cloud：
+
+```text
+https://datamining-finalproject-jwxzxr4njtsox4z9quebt7.streamlit.app/
+```
+
+部署需要 GitHub repository 中包含：
+
+```text
+app.py
+requirements.txt
+hybrid_deep_models_p097/
+```
+
+Streamlit Cloud 會自動讀取 `requirements.txt` 安裝套件，並以 `app.py` 作為 main file 執行。
+
+## GitHub 注意事項
+
+`.gitignore` 已排除大型或非必要檔案，但特別保留 final App 需要的 `hybrid_deep_models_p097/`：
 
 ```text
 train_dataset/
@@ -397,10 +414,11 @@ csv_history/
 __pycache__/
 ```
 
-GitHub repo 內建議保留：
+GitHub repo 建議保留：
 
 ```text
 README.md
+requirements.txt
 app.py
 train_hybrid_deep_classifier.py
 adjust_submission_thresholds.py
@@ -410,5 +428,3 @@ test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv
 hybrid_deep_models_p097/
 Final Testing Results/
 ```
-
-由於 final model 權重已經包含在 repo 內，其他人 clone 後只要安裝 Python 套件，就可以直接執行 `app.py`。若未來模型檔案變得更大，例如單檔超過 GitHub 建議大小，才需要改用 GitHub Release 或 Git LFS。
