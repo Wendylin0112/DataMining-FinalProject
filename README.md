@@ -31,7 +31,7 @@ yoke-suspension
 https://datamining-finalproject-jwxzxr4njtsox4z9quebt7.streamlit.app/
 ```
 
-2. 上傳一張巡檢圖片，支援 `jpg`、`jpeg`、`png`。
+2. 上傳一張或多張巡檢圖片，支援 `jpg`、`jpeg`、`png`。
 
 3. 網頁會輸出：
 
@@ -42,6 +42,8 @@ threshold
 normal / defective 預測結果
 component probabilities
 ```
+
+4. 若一次上傳多張圖片，可以在結果表格檢查每張圖片的預測結果，並下載 CSV 保存批次推論結果。
 
 預測結果中：
 
@@ -260,6 +262,18 @@ DataMining/
     defect_glass-insulator.pt
     defect_yoke-suspension.pt
 
+  app_examples/
+    glass-insulator-good.jpg
+    glass-insulator-bad.jpg
+    lightning-rod-suspension-good.jpg
+    lightning-rod-suspension-bad.jpg
+    polymer-insulator-upper-shackle-good.jpg
+    polymer-insulator-upper-shackle-bad.jpg
+    vari-grip-good.jpg
+    vari-grip-bad.jpg
+    yoke-suspension-good.jpg
+    yoke-suspension-bad.jpg
+
   Final Testing Results/
     README.md
     results_summary.csv
@@ -393,6 +407,7 @@ https://datamining-finalproject-jwxzxr4njtsox4z9quebt7.streamlit.app/
 app.py
 requirements.txt
 hybrid_deep_models_p097/
+app_examples/
 ```
 
 Streamlit Cloud 會自動讀取 `requirements.txt` 安裝套件，並以 `app.py` 作為 main file 執行。
