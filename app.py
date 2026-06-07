@@ -15,6 +15,7 @@ IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 DEFAULT_MODEL_DIR = "hybrid_deep_models_p097"
 EXAMPLE_DIR = Path("app_examples")
+PREVIEW_IMAGE_WIDTH = 460
 
 COMPONENT_DISPLAY_NAMES = {
     "vari-grip": "vari-grip 可調式夾線條",
@@ -460,7 +461,7 @@ def render_upload_panel(uploaded_files, selected_item=None, selected_result=None
         return
 
     selected_image = image_from_bytes(selected_item["image_bytes"])
-    st.image(selected_image, caption=f"Preview: {selected_item['filename']}", width=460)
+    st.image(selected_image, caption=f"Preview: {selected_item['filename']}", width=PREVIEW_IMAGE_WIDTH)
 
     if selected_result is not None:
         st.write(f"Component: `{selected_result['component_display']}`")
@@ -625,7 +626,7 @@ def main():
 
     stored_uploaded_files = st.session_state.get("uploaded_images", [])
 
-    left_col, right_col = st.columns([0.92, 1.08], gap="large")
+    left_col, right_col = st.columns([0.56, 1.44], gap="large")
     with left_col:
         if stored_uploaded_files:
             upload_title_col, reset_col = st.columns([0.62, 0.38])
