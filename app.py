@@ -332,9 +332,29 @@ def render_model_error(exc):
 
 def render_prediction_badge(pred_label):
     if pred_label == 1:
-        st.error("DEFECTIVE / bad (1)")
+        label = "DEFECTIVE / bad (1)"
+        state_class = "prediction-status-defective"
     else:
-        st.success("NORMAL / good (0)")
+        label = "NORMAL / good (0)"
+        state_class = "prediction-status-normal"
+    st.markdown(
+        f'<div class="prediction-status-card {state_class}">{label}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_score_threshold_card(selected_result):
+    st.markdown(
+        f"""
+        <div class="prediction-score-card">
+            <div class="prediction-score-label">Selected score / threshold</div>
+            <div class="prediction-score-value">
+                {selected_result['defect_score']:.4f} / {selected_result['threshold']:.4f}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def clamp_selected_index(item_count):
@@ -441,15 +461,11 @@ def render_prediction_panel(results_df, items, selected_result):
     metric_cols[1].metric("Defective", defective_count, help="模型判斷為 defective / bad (1) 的圖片數。")
     metric_cols[2].metric("Normal", normal_count, help="模型判斷為 normal / good (0) 的圖片數。")
 
-    status_col, score_col = st.columns([0.75, 0.3])
+    status_col, score_col = st.columns([0.7, 0.3])
     with status_col:
         render_prediction_badge(selected_result["pred_label"])
     with score_col:
-        st.metric(
-            "Selected score / threshold",
-            f"{selected_result['defect_score']:.4f} / {selected_result['threshold']:.4f}",
-            help="目前選取圖片的 defect score 與此模式使用的 threshold。",
-        )
+        render_score_threshold_card(selected_result)
     st.write(f"Selected component: `{selected_result['component_display']}`")
 
     render_results_table(results_df, items)
@@ -602,6 +618,46 @@ def main():
             min-height: 4rem;
             padding-top: 0.5rem;
             padding-bottom: 0.5rem;
+        }
+        .prediction-status-card,
+        .prediction-score-card {
+            min-height: 5.2rem;
+            box-sizing: border-box;
+            margin: 0.35rem 0 0.75rem 0;
+        }
+        .prediction-status-card {
+            display: flex;
+            align-items: center;
+            border-radius: 0.4rem;
+            padding: 1rem;
+            font-weight: 600;
+        }
+        .prediction-status-normal {
+            background: rgba(20, 83, 45, 0.86);
+            color: rgb(74, 222, 128);
+        }
+        .prediction-status-defective {
+            background: rgba(127, 29, 29, 0.86);
+            color: rgb(252, 165, 165);
+        }
+        .prediction-score-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0.25rem 0;
+        }
+        .prediction-score-label {
+            color: rgba(250, 250, 250, 0.65);
+            font-size: 0.875rem;
+            font-weight: 600;
+            line-height: 1.2;
+            margin-bottom: 0.35rem;
+        }
+        .prediction-score-value {
+            color: rgb(250, 250, 250);
+            font-size: 1.9rem;
+            line-height: 1.1;
+            font-weight: 400;
         }
         </style>
         """,
