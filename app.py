@@ -358,7 +358,7 @@ def render_image_navigation(items):
     clamp_selected_index(len(items))
     filenames = [item["filename"] for item in items]
 
-    prev_col, select_col, next_col = st.columns([0.12, 0.82, 0.12])
+    prev_col, select_col, next_col = st.columns([0.18, 0.82, 0.18])
     with prev_col:
         if st.button("←", use_container_width=True, disabled=st.session_state.selected_image_index <= 0, help="Previous image"):
             st.session_state.selected_image_index -= 1
