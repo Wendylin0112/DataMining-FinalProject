@@ -133,7 +133,7 @@ def get_threshold(component, route, metadata, mode, manual_threshold):
         if component in FINAL_COMPONENT_THRESHOLDS:
             return FINAL_COMPONENT_THRESHOLDS[component]
         return metadata["route_thresholds"][route]
-    if mode == "Validation route thresholds":
+    if mode == "Validation thresholds":
         return metadata["route_thresholds"][route]
     return manual_threshold
 
@@ -191,7 +191,6 @@ def result_to_row(filename, result):
         "threshold": round(result["threshold"], 6),
         "prediction_label": result["pred_label"],
         "prediction": result["prediction"],
-        "defect_route": result["route"],
     }
     for component, probability in result["component_probability_values"].items():
         row[f"prob_{component}"] = round(probability, 6)
@@ -382,7 +381,6 @@ def render_results_table(results_df, items):
             "threshold",
             "prediction_label",
             "prediction",
-            "defect_route",
         ]
     ].copy()
     display_df.insert(0, "remove", False)
@@ -398,7 +396,6 @@ def render_results_table(results_df, items):
             "threshold",
             "prediction_label",
             "prediction",
-            "defect_route",
         ],
         column_config={
             "remove": st.column_config.CheckboxColumn(
@@ -433,7 +430,6 @@ def render_prediction_panel(results_df, items, selected_result):
 
     render_prediction_badge(selected_result["pred_label"])
     st.write(f"Selected component: `{selected_result['component_display']}`")
-    st.write(f"Defect route: `{selected_result['route']}`")
 
     render_results_table(results_df, items)
 
@@ -477,11 +473,11 @@ def render_threshold_explanation(metadata):
         """
         **Final submission thresholds**
 
-        使用正式提交最佳版本的 threshold。大多數 route 使用 validation tuning 的 threshold，並針對部分設備類別做 component-level 覆寫，以在 precision 維持 0.90 以上時提高 recall。
+        使用正式提交最佳版本的 threshold。大多數模型分支使用 validation tuning 的 threshold，並針對部分設備類別做 component-level 覆寫，以在 precision 維持 0.90 以上時提高 recall。
 
-        **Validation route thresholds**
+        **Validation thresholds**
 
-        使用訓練時在 validation set 上針對每個 defect route 搜尋出的 threshold。
+        使用訓練時在 validation set 上搜尋出的 threshold。
 
         **Manual threshold**
 
@@ -499,15 +495,6 @@ def render_threshold_explanation(metadata):
             }
         )
     st.sidebar.dataframe(pd.DataFrame(final_rows), hide_index=True, use_container_width=True)
-
-    route_rows = [
-        {"route": route, "threshold": threshold}
-        for route, threshold in metadata.get("route_thresholds", {}).items()
-    ]
-    if route_rows:
-        with st.sidebar.expander("Validation route threshold values"):
-            st.dataframe(pd.DataFrame(route_rows), hide_index=True, use_container_width=True)
-
 
 def render_guide():
     st.divider()
@@ -550,7 +537,7 @@ def render_guide():
             input image
               -> EfficientNet-B0 component classifier
               -> 5-class equipment prediction
-              -> choose defect route
+              -> choose defect classifier
               -> global or specialist defect classifier
               -> normal / defective
             ```
@@ -605,7 +592,7 @@ def main():
         )
         threshold_mode = st.selectbox(
             "Threshold mode",
-            ["Final submission thresholds", "Validation route thresholds", "Manual threshold"],
+            ["Final submission thresholds", "Validation thresholds", "Manual threshold"],
             help="選擇 defect score 要使用哪一組 threshold 轉換成 normal / defective。",
         )
         manual_threshold = 0.50
