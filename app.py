@@ -297,6 +297,12 @@ def clamp_selected_index(item_count):
         st.session_state.selected_image_index = min(st.session_state.selected_image_index, item_count - 1)
 
 
+def reset_upload_state():
+    st.session_state.uploader_version = st.session_state.get("uploader_version", 0) + 1
+    st.session_state.selected_image_index = 0
+    st.session_state.removed_upload_ids = set()
+
+
 def render_image_navigation(items):
     clamp_selected_index(len(items))
     filenames = [item["filename"] for item in items]
@@ -417,7 +423,7 @@ def render_upload_panel(uploaded_files, selected_item=None, selected_result=None
         return
 
     selected_image = image_from_bytes(selected_item["image_bytes"])
-    st.image(selected_image, caption=f"Preview: {selected_item['filename']}", use_container_width=True)
+    st.image(selected_image, caption=f"Preview: {selected_item['filename']}", width=460)
 
     if selected_result is not None:
         st.write(f"Component: `{selected_result['component_display']}`")
@@ -529,6 +535,19 @@ def main():
         page_icon="🔎",
         layout="wide",
     )
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stFileUploaderFile"] {
+            display: none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    if "uploader_version" not in st.session_state:
+        st.session_state.uploader_version = 0
+
     st.title("Power-Line Asset Defect Classifier")
     st.caption("Upload power-line inspection images and classify equipment type plus normal / defective status.")
 
@@ -569,7 +588,14 @@ def main():
 
     left_col, right_col = st.columns([0.92, 1.08], gap="large")
     with left_col:
-        st.subheader("Upload images")
+        upload_title_col, reset_col = st.columns([0.62, 0.38])
+        with upload_title_col:
+            st.subheader("Upload images")
+        with reset_col:
+            st.write("")
+            if st.button("重新上傳", use_container_width=True, help="清除目前上傳清單與移除狀態，重新選擇圖片。"):
+                reset_upload_state()
+                st.rerun()
         st.caption("可以一次上傳多張 JPG / PNG。右側會顯示批次預測結果，並提供 CSV 下載。")
         uploaded_files = st.file_uploader(
             "Upload inspection images",
@@ -577,6 +603,7 @@ def main():
             accept_multiple_files=True,
             help="可以一次選取多張圖片。建議使用清楚包含目標設備的巡檢影像。",
             label_visibility="collapsed",
+            key=f"inspection_uploads_{st.session_state.uploader_version}",
         )
         preview_slot = st.empty()
 
