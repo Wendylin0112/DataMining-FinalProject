@@ -479,36 +479,38 @@ def render_upload_panel(uploaded_files, selected_item=None, selected_result=None
         st.write(f"Prediction: `{selected_result['prediction']}`")
         st.write(f"Defect score: `{selected_result['defect_score']:.4f}`")
 
-
-def render_threshold_explanation(metadata):
+def render_threshold_explanation(metadata, manual_threshold):
     st.sidebar.divider()
     st.sidebar.subheader("Threshold mode 說明")
-    st.sidebar.markdown(
-        """
-        **Final submission thresholds**
 
-        使用正式提交最佳版本的 threshold。大多數模型分支使用 validation tuning 的 threshold，並針對部分設備類別做 component-level 覆寫，以在 precision 維持 0.90 以上時提高 recall。
+    final_rows = [
+        {
+            "component": COMPONENT_DISPLAY_NAMES.get(component, component),
+            "threshold": threshold,
+        }
+        for component, threshold in FINAL_COMPONENT_THRESHOLDS.items()
+    ]
+    validation_rows = [
+        {
+            "classifier": classifier,
+            "threshold": threshold,
+        }
+        for classifier, threshold in metadata.get("route_thresholds", {}).items()
+    ]
+    manual_rows = [{"threshold": manual_threshold}]
 
-        **Validation thresholds**
+    with st.sidebar.expander("Final submission thresholds", expanded=True):
+        st.write("正式提交最佳版本使用的設定；針對部分設備類別覆寫 threshold，以提高 recall。")
+        st.dataframe(pd.DataFrame(final_rows), hide_index=True, use_container_width=True)
 
-        使用訓練時在 validation set 上搜尋出的 threshold。
+    with st.sidebar.expander("Validation thresholds"):
+        st.write("訓練時根據 validation set 搜尋出的 threshold。")
+        st.dataframe(pd.DataFrame(validation_rows), hide_index=True, use_container_width=True)
 
-        **Manual threshold**
+    with st.sidebar.expander("Manual threshold"):
+        st.write("使用單一手動 threshold。數值越低越容易判斷為 defective。")
+        st.dataframe(pd.DataFrame(manual_rows), hide_index=True, use_container_width=True)
 
-        使用你手動設定的單一 threshold。數值越低越容易判斷為 defective，通常 recall 會上升，但 precision 可能下降。
-        """
-    )
-
-    final_rows = []
-    for component, threshold in FINAL_COMPONENT_THRESHOLDS.items():
-        final_rows.append(
-            {
-                "component": COMPONENT_DISPLAY_NAMES.get(component, component),
-                "threshold": threshold,
-                "source": "final component override",
-            }
-        )
-    st.sidebar.dataframe(pd.DataFrame(final_rows), hide_index=True, use_container_width=True)
 
 def render_guide():
     st.divider()
@@ -633,7 +635,7 @@ def main():
         render_model_error(exc)
         st.stop()
 
-    render_threshold_explanation(bundle["metadata"])
+    render_threshold_explanation(bundle["metadata"], manual_threshold)
 
     stored_uploaded_files = st.session_state.get("uploaded_images", [])
 
