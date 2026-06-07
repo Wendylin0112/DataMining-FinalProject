@@ -347,13 +347,14 @@ def render_image_navigation(items):
 
     prev_col, select_col, next_col = st.columns([0.22, 0.56, 0.22])
     with prev_col:
-        if st.button("← Previous", use_container_width=True, disabled=st.session_state.selected_image_index <= 0):
+        if st.button("←", use_container_width=True, disabled=st.session_state.selected_image_index <= 0, help="Previous image"):
             st.session_state.selected_image_index -= 1
     with next_col:
         if st.button(
-            "Next →",
+            "→",
             use_container_width=True,
             disabled=st.session_state.selected_image_index >= len(items) - 1,
+            help="Next image",
         ):
             st.session_state.selected_image_index += 1
 
@@ -579,6 +580,10 @@ def main():
         div[data-testid="stFileUploaderFile"] {
             display: none;
         }
+        div[data-testid="stImage"] img {
+            max-width: 100%;
+            height: auto;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -626,7 +631,7 @@ def main():
 
     stored_uploaded_files = st.session_state.get("uploaded_images", [])
 
-    left_col, right_col = st.columns([0.56, 1.44], gap="large")
+    left_col, right_col = st.columns([0.72, 1.28], gap="large")
     with left_col:
         if stored_uploaded_files:
             upload_title_col, reset_col = st.columns([0.62, 0.38])
