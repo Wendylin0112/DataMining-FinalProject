@@ -16,6 +16,8 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 DEFAULT_MODEL_DIR = "hybrid_deep_models_p097"
 EXAMPLE_DIR = Path("app_examples")
 PREVIEW_IMAGE_WIDTH = 460
+PREVIEW_FULLSCREEN_MIN_WIDTH = 1000
+EXAMPLE_IMAGE_WIDTH = 300
 
 COMPONENT_DISPLAY_NAMES = {
     "vari-grip": "vari-grip 可調式夾線條",
@@ -201,6 +203,18 @@ def image_from_bytes(image_bytes):
     return Image.open(BytesIO(image_bytes)).convert("RGB")
 
 
+def upscale_for_fullscreen(image, min_width=PREVIEW_FULLSCREEN_MIN_WIDTH):
+    if image.width >= min_width:
+        return image
+    scale = min_width / image.width
+    target_size = (min_width, max(1, int(image.height * scale)))
+    try:
+        resample = Image.Resampling.LANCZOS
+    except AttributeError:
+        resample = Image.LANCZOS
+    return image.resize(target_size, resample)
+
+
 def uploaded_name(uploaded_file):
     if isinstance(uploaded_file, dict):
         return uploaded_file["name"]
@@ -344,13 +358,13 @@ def render_image_navigation(items):
     clamp_selected_index(len(items))
     filenames = [item["filename"] for item in items]
 
-    prev_col, select_col, next_col = st.columns([0.22, 0.56, 0.22])
+    prev_col, select_col, next_col = st.columns([0.12, 0.76, 0.12])
     with prev_col:
-        if st.button("←", use_container_width=True, disabled=st.session_state.selected_image_index <= 0, help="Previous image"):
+        if st.button("‹", use_container_width=True, disabled=st.session_state.selected_image_index <= 0, help="Previous image"):
             st.session_state.selected_image_index -= 1
     with next_col:
         if st.button(
-            "→",
+            "›",
             use_container_width=True,
             disabled=st.session_state.selected_image_index >= len(items) - 1,
             help="Next image",
@@ -457,7 +471,7 @@ def render_upload_panel(uploaded_files, selected_item=None, selected_result=None
         st.info("Preparing preview...")
         return
 
-    selected_image = image_from_bytes(selected_item["image_bytes"])
+    selected_image = upscale_for_fullscreen(image_from_bytes(selected_item["image_bytes"]))
     st.image(selected_image, caption=f"Preview: {selected_item['filename']}", width=PREVIEW_IMAGE_WIDTH)
 
     if selected_result is not None:
@@ -524,7 +538,7 @@ def render_guide():
                 with col:
                     st.markdown(f"**{label.upper()} example**")
                     if image_path.exists():
-                        st.image(str(image_path), use_container_width=True)
+                        st.image(str(image_path), width=EXAMPLE_IMAGE_WIDTH)
                     else:
                         st.warning(f"Missing example image: {image_path}")
 
