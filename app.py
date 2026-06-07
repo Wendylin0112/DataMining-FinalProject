@@ -441,7 +441,7 @@ def render_prediction_panel(results_df, items, selected_result):
     metric_cols[1].metric("Defective", defective_count, help="模型判斷為 defective / bad (1) 的圖片數。")
     metric_cols[2].metric("Normal", normal_count, help="模型判斷為 normal / good (0) 的圖片數。")
 
-    status_col, score_col = st.columns([0.72, 0.28])
+    status_col, score_col = st.columns([0.75, 0.28])
     with status_col:
         render_prediction_badge(selected_result["pred_label"])
     with score_col:
