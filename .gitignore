@@ -33,6 +33,10 @@ test_dataset/
 *.joblib
 hybrid_deep_models*/
 
+# Keep the final model weights so the Streamlit app works after clone.
+!hybrid_deep_models_p097/
+!hybrid_deep_models_p097/**
+
 # Historical experiment CSVs are kept locally only.
 csv_history/
 

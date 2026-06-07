@@ -103,7 +103,7 @@ DataMining/
     images/
 ```
 
-`hybrid_deep_models_p097/`、`train_dataset/`、`test_dataset/` 通常不會放進 GitHub，因為模型權重與資料集檔案較大。這些資料夾已經由 `.gitignore` 排除；如果其他人 clone 專案後要執行 App，需要另外取得 `hybrid_deep_models_p097/`，或是自行重新訓練產生。
+`hybrid_deep_models_p097/` 是最終 App 會使用的模型權重資料夾，單一 `.pt` 檔約 15 MB，因此本專案會將這個 final model 一起放進 GitHub，讓其他人 clone 後可以直接執行 App。`train_dataset/`、`test_dataset/` 和其他實驗模型資料夾仍然不放進 GitHub，避免 repo 過大。
 
 ## 安裝環境
 
@@ -382,16 +382,18 @@ tp: 197
 
 ## GitHub 上傳注意事項
 
-`.gitignore` 已排除大型或非必要檔案：
+`.gitignore` 已排除大型或非必要檔案，但特別保留最終 App 需要的 `hybrid_deep_models_p097/`：
 
 ```text
 train_dataset/
 test_dataset/
-hybrid_deep_models*/
-csv_history/
 *.pt
 *.pth
 *.joblib
+hybrid_deep_models*/
+!hybrid_deep_models_p097/
+!hybrid_deep_models_p097/**
+csv_history/
 __pycache__/
 ```
 
@@ -405,7 +407,8 @@ adjust_submission_thresholds.py
 test_submission_template.csv
 test_submission_hybrid_deep_p097_comp_balanced.csv
 test_predictions_hybrid_deep_p097_comp_balanced_detailed.csv
+hybrid_deep_models_p097/
 Final Testing Results/
 ```
 
-如果希望其他人 clone 後可以直接執行 App，需要另外提供 `hybrid_deep_models_p097/` 模型權重，例如放在雲端硬碟、GitHub Release，或使用 Git LFS 管理大型模型檔案。
+由於 final model 權重已經包含在 repo 內，其他人 clone 後只要安裝 Python 套件，就可以直接執行 `app.py`。若未來模型檔案變得更大，例如單檔超過 GitHub 建議大小，才需要改用 GitHub Release 或 Git LFS。
