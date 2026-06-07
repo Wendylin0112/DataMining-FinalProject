@@ -265,6 +265,7 @@ yoke-suspension
 核心程式：
 
 ```text
+app.py
 train_hybrid_deep_classifier.py
 adjust_submission_thresholds.py
 ```
@@ -298,3 +299,29 @@ Final Testing Results/
 ```
 
 其中 `第二次.json` 是最終版本的 scoring result。
+
+## Local Web App
+
+`app.py` 是 Streamlit local web app，已改成載入最終 hybrid deep model。
+
+使用的模型資料夾：
+
+```text
+hybrid_deep_models_p097/
+```
+
+此資料夾包含 `.pt` model weights，因檔案較大已被 `.gitignore` 排除；若從 GitHub clone 專案，需要自行重新訓練或複製此資料夾到專案根目錄。
+
+若 `aicup_cuda` 尚未安裝 Streamlit：
+
+```powershell
+conda run --no-capture-output -n aicup_cuda python -m pip install streamlit
+```
+
+啟動 app：
+
+```powershell
+conda run --no-capture-output -n aicup_cuda python -m streamlit run app.py
+```
+
+App 會先使用 component classifier 判斷設備類別，再依據 component 選擇 global defect model 或 specialist defect model。預設 threshold mode 使用最終提交 `test_submission_hybrid_deep_p097_comp_balanced.csv` 的 component-level thresholds。
