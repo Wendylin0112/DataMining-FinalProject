@@ -214,7 +214,7 @@ def render_prediction_badge(pred_label):
 
 def render_prediction_panel(results_df, first_result):
     st.subheader("Prediction results")
-    st.caption("i  Defect score 大於等於 threshold 時，模型會輸出 defective / bad (1)。")
+    st.caption("ⓘ Defect score 大於等於 threshold 時，模型會輸出 defective / bad (1)。")
 
     metric_cols = st.columns(4)
     total = len(results_df)
@@ -251,7 +251,7 @@ def render_prediction_panel(results_df, first_result):
         help="下載本次上傳圖片的預測結果，包含檔名、設備類別、defect score、threshold 與預測 label。",
     )
 
-    with st.expander("i  Component probabilities for the first image"):
+    with st.expander("ⓘ Component probabilities for the first image"):
         probs = first_result["component_probabilities"].copy()
         probs["probability"] = probs["probability"].map(lambda value: f"{value:.4f}")
         st.dataframe(probs, hide_index=True, use_container_width=True)
@@ -259,7 +259,7 @@ def render_prediction_panel(results_df, first_result):
 
 def render_upload_panel(uploaded_files):
     st.subheader("Upload images")
-    st.caption("i  可以一次上傳多張 JPG / PNG。右側會顯示批次預測結果，並提供 CSV 下載。")
+    st.caption("ⓘ 可以一次上傳多張 JPG / PNG。右側會顯示批次預測結果，並提供 CSV 下載。")
 
     if not uploaded_files:
         st.info("Upload one or more inspection images to run prediction.")
@@ -269,7 +269,7 @@ def render_upload_panel(uploaded_files):
     st.image(first_image, caption=f"Preview: {uploaded_files[0].name}", use_container_width=True)
 
     if len(uploaded_files) > 1:
-        with st.expander(f"i  Uploaded image list ({len(uploaded_files)} files)"):
+        with st.expander(f"ⓘ Uploaded image list ({len(uploaded_files)} files)"):
             for uploaded_file in uploaded_files:
                 st.write(uploaded_file.name)
 
@@ -290,7 +290,7 @@ def render_guide():
             5. 預測完成後可以下載 CSV，方便整理批次圖片的結果。
             """
         )
-        st.info("i  defective 通常代表照片中可能有缺失零件、鏽蝕、破損、鳥巢或其他異常附著物。")
+        st.info("ⓘ defective 通常代表照片中可能有缺失零件、鏽蝕、破損、鳥巢或其他異常附著物。")
 
     with examples_tab:
         for component, display_name in COMPONENT_DISPLAY_NAMES.items():
@@ -363,7 +363,7 @@ def main():
             help="只有在 Threshold mode 選 Manual threshold 時才會使用。",
         )
         st.divider()
-        st.caption("i  線上版使用 CPU 推論，第一次開啟或大量上傳時可能需要稍等。")
+        st.caption("ⓘ 線上版使用 CPU 推論，第一次開啟或大量上傳時可能需要稍等。")
 
     try:
         bundle = load_hybrid_model(model_dir)
