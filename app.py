@@ -587,8 +587,8 @@ def main():
         }
         div[data-testid="stButton"] button {
             min-height: 2.55rem;
-            padding-top: 0.35rem;
-            padding-bottom: 0.35rem;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
         }
         </style>
         """,
