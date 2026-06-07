@@ -586,7 +586,7 @@ def main():
             height: auto;
         }
         div[data-testid="stButton"] button {
-            min-height: 5rem;
+            min-height: 4rem;
             padding-top: 0.5rem;
             padding-bottom: 0.5rem;
         }
