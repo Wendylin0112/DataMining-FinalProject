@@ -201,10 +201,22 @@ def image_from_bytes(image_bytes):
     return Image.open(BytesIO(image_bytes)).convert("RGB")
 
 
+def uploaded_name(uploaded_file):
+    if isinstance(uploaded_file, dict):
+        return uploaded_file["name"]
+    return uploaded_file.name
+
+
+def uploaded_bytes(uploaded_file):
+    if isinstance(uploaded_file, dict):
+        return uploaded_file["bytes"]
+    return uploaded_file.getvalue()
+
+
 def cache_key(uploaded_file, image_bytes, model_dir, threshold_mode, manual_threshold):
     digest = hashlib.md5(image_bytes).hexdigest()
     return (
-        uploaded_file.name,
+        uploaded_name(uploaded_file),
         len(image_bytes),
         digest,
         model_dir,
@@ -218,17 +230,39 @@ def upload_id(filename, image_bytes):
     return f"{filename}|{len(image_bytes)}|{digest}"
 
 
+def upload_signature(uploaded_files):
+    return tuple(upload_id(uploaded_name(uploaded_file), uploaded_bytes(uploaded_file)) for uploaded_file in uploaded_files)
+
+
+def store_uploaded_files(uploaded_files):
+    signature = upload_signature(uploaded_files)
+    if st.session_state.get("uploaded_signature") == signature:
+        return
+
+    st.session_state.uploaded_images = [
+        {
+            "name": uploaded_name(uploaded_file),
+            "bytes": uploaded_bytes(uploaded_file),
+        }
+        for uploaded_file in uploaded_files
+    ]
+    st.session_state.uploaded_signature = signature
+    st.session_state.removed_upload_ids = set()
+    st.session_state.selected_image_index = 0
+    st.rerun()
+
+
 def get_active_uploaded_files(uploaded_files):
     if "removed_upload_ids" not in st.session_state:
         st.session_state.removed_upload_ids = set()
 
-    current_ids = {upload_id(uploaded_file.name, uploaded_file.getvalue()) for uploaded_file in uploaded_files}
+    current_ids = {upload_id(uploaded_name(uploaded_file), uploaded_bytes(uploaded_file)) for uploaded_file in uploaded_files}
     st.session_state.removed_upload_ids = st.session_state.removed_upload_ids.intersection(current_ids)
 
     return [
         uploaded_file
         for uploaded_file in uploaded_files
-        if upload_id(uploaded_file.name, uploaded_file.getvalue()) not in st.session_state.removed_upload_ids
+        if upload_id(uploaded_name(uploaded_file), uploaded_bytes(uploaded_file)) not in st.session_state.removed_upload_ids
     ]
 
 
@@ -239,22 +273,23 @@ def predict_uploaded_files(uploaded_files, bundle, model_dir, threshold_mode, ma
     items = []
     progress = st.progress(0, text="Running predictions...")
     for index, uploaded_file in enumerate(uploaded_files, start=1):
-        image_bytes = uploaded_file.getvalue()
-        current_upload_id = upload_id(uploaded_file.name, image_bytes)
+        image_bytes = uploaded_bytes(uploaded_file)
+        filename = uploaded_name(uploaded_file)
+        current_upload_id = upload_id(filename, image_bytes)
         key = cache_key(uploaded_file, image_bytes, model_dir, threshold_mode, manual_threshold)
         if key not in st.session_state.prediction_cache:
             image = image_from_bytes(image_bytes)
             result = predict(image, bundle, threshold_mode, manual_threshold)
             st.session_state.prediction_cache[key] = {
                 "result": result,
-                "row": result_to_row(uploaded_file.name, result),
+                "row": result_to_row(filename, result),
             }
 
         cached = st.session_state.prediction_cache[key]
         items.append(
             {
                 "upload_id": current_upload_id,
-                "filename": uploaded_file.name,
+                "filename": filename,
                 "image_bytes": image_bytes,
                 "result": cached["result"],
                 "row": cached["row"],
@@ -301,6 +336,8 @@ def reset_upload_state():
     st.session_state.uploader_version = st.session_state.get("uploader_version", 0) + 1
     st.session_state.selected_image_index = 0
     st.session_state.removed_upload_ids = set()
+    st.session_state.uploaded_images = []
+    st.session_state.uploaded_signature = ()
 
 
 def render_image_navigation(items):
@@ -586,25 +623,36 @@ def main():
 
     render_threshold_explanation(bundle["metadata"])
 
+    stored_uploaded_files = st.session_state.get("uploaded_images", [])
+
     left_col, right_col = st.columns([0.92, 1.08], gap="large")
     with left_col:
-        upload_title_col, reset_col = st.columns([0.62, 0.38])
-        with upload_title_col:
+        if stored_uploaded_files:
+            upload_title_col, reset_col = st.columns([0.62, 0.38])
+            with upload_title_col:
+                st.subheader("Upload images")
+            with reset_col:
+                st.write("")
+                if st.button("重新上傳", use_container_width=True, help="清除目前上傳清單與移除狀態，重新選擇圖片。"):
+                    reset_upload_state()
+                    st.rerun()
+        else:
             st.subheader("Upload images")
-        with reset_col:
-            st.write("")
-            if st.button("重新上傳", use_container_width=True, help="清除目前上傳清單與移除狀態，重新選擇圖片。"):
-                reset_upload_state()
-                st.rerun()
         st.caption("可以一次上傳多張 JPG / PNG。右側會顯示批次預測結果，並提供 CSV 下載。")
-        uploaded_files = st.file_uploader(
-            "Upload inspection images",
-            type=["jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-            help="可以一次選取多張圖片。建議使用清楚包含目標設備的巡檢影像。",
-            label_visibility="collapsed",
-            key=f"inspection_uploads_{st.session_state.uploader_version}",
-        )
+        if stored_uploaded_files:
+            uploaded_files = stored_uploaded_files
+        else:
+            raw_uploaded_files = st.file_uploader(
+                "Upload inspection images",
+                type=["jpg", "jpeg", "png"],
+                accept_multiple_files=True,
+                help="可以一次選取多張圖片。建議使用清楚包含目標設備的巡檢影像。",
+                label_visibility="collapsed",
+                key=f"inspection_uploads_{st.session_state.uploader_version}",
+            )
+            if raw_uploaded_files:
+                store_uploaded_files(raw_uploaded_files)
+            uploaded_files = []
         preview_slot = st.empty()
 
     active_uploaded_files = get_active_uploaded_files(uploaded_files) if uploaded_files else []
