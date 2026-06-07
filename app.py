@@ -447,7 +447,8 @@ def render_prediction_panel(results_df, items, selected_result):
 
     render_results_table(results_df, items)
 
-    csv_bytes = results_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+    csv_df = results_df.drop(columns=["component_display"], errors="ignore")
+    csv_bytes = csv_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
     st.download_button(
         "Download prediction CSV",
         data=csv_bytes,
