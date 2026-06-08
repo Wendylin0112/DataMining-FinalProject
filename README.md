@@ -87,11 +87,11 @@ hybrid_deep_models_p097/
 
 ### 2. 建立 Python 環境
 
-建議使用 conda：
+本專案示範使用的 conda 環境名稱為 `powerline_defect`。環境名稱可以自行調整；如果你已經有可用的 Python / CUDA / PyTorch 環境，也可以直接使用自己的環境執行。
 
 ```powershell
-conda create -n aicup_cuda python=3.11 -y
-conda activate aicup_cuda
+conda create -n powerline_defect python=3.11 -y
+conda activate powerline_defect
 ```
 
 安裝套件：
@@ -99,6 +99,13 @@ conda activate aicup_cuda
 ```powershell
 pip install -r requirements.txt
 ```
+
+CUDA / GPU 說明：
+
+- 使用 NVIDIA GPU 時，請依照自己的 GPU、驅動版本與作業系統，在目前啟用的虛擬環境中安裝相容的 CUDA 版 `torch` / `torchvision`。
+- 如果本機環境已經安裝可用的 CUDA 與 PyTorch，可以使用原本的環境，不一定要建立 `powerline_defect`。
+- 如果沒有 GPU 或不需要 GPU，也可以使用 CPU 版 PyTorch，但訓練速度會較慢。
+- PyTorch / CUDA 安裝指令可能隨版本調整，建議以 PyTorch 官方網站產生的安裝指令為準：https://pytorch.org/get-started/locally/
 
 `requirements.txt` 主要包含：
 
@@ -121,7 +128,7 @@ streamlit run app.py
 或使用 conda run：
 
 ```powershell
-conda run --no-capture-output -n aicup_cuda python -m streamlit run app.py
+conda run --no-capture-output -n powerline_defect python -m streamlit run app.py
 ```
 
 啟動後會在瀏覽器開啟本機網址，通常是：
@@ -316,7 +323,7 @@ test_dataset/
 重現最終 p097 base model 的訓練指令：
 
 ```powershell
-conda run --no-capture-output -n aicup_cuda python -u train_hybrid_deep_classifier.py --batch-size 12 --num-workers 0 --specialist-min-bad 80 --specialist-min-good 100 --defect-epochs 6 --lr-finetune 3e-5 --target-defect-precision 0.97 --binary-sampler label --defect-pos-weight-multiplier 1.0 --log-every 25 --output test_submission_hybrid_deep_p097.csv --detailed-output test_predictions_hybrid_deep_p097_detailed.csv --model-dir hybrid_deep_models_p097
+conda run --no-capture-output -n powerline_defect python -u train_hybrid_deep_classifier.py --batch-size 12 --num-workers 0 --specialist-min-bad 80 --specialist-min-good 100 --defect-epochs 6 --lr-finetune 3e-5 --target-defect-precision 0.97 --binary-sampler label --defect-pos-weight-multiplier 1.0 --log-every 25 --output test_submission_hybrid_deep_p097.csv --detailed-output test_predictions_hybrid_deep_p097_detailed.csv --model-dir hybrid_deep_models_p097
 ```
 
 `python -u` 與 `--log-every 25` 會讓訓練過程即時輸出目前訓練到哪一個模型、哪一個 epoch，以及 batch 進度。
